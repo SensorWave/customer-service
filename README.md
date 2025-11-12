@@ -48,7 +48,7 @@ cp .env.example .env
 Depuis la racine du projet :
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ## 🧠 Utilisation
@@ -83,13 +83,13 @@ SELECT * FROM users;
 Pour arrêter et supprimer les containers :
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 Pour tout supprimer (containers + volumes + images) :
 
 ```bash
-docker-compose down -v --rmi all
+docker compose down -v --rmi all
 ```
 
 ## 📘 Notes
