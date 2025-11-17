@@ -1,6 +1,9 @@
 package user
 
-import "database/sql"
+import (
+    "context"
+    "database/sql"
+)
 
 type Repository struct {
     DB *sql.DB
@@ -10,19 +13,65 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{DB: db}
 }
 
-func (r *Repository) Create(u *User) error {
+func (r *Repository) Create(ctx context.Context, u *User) error {
     query := `INSERT INTO users (id, company_id, first_name, last_name, email, phone, created_at, updated_at)
               VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())`
-    _, err := r.DB.Exec(query, u.ID, u.CompanyID, u.FirstName, u.LastName, u.Email, u.Phone)
+
+    _, err := r.DB.ExecContext(ctx, query,
+        u.ID, u.CompanyID, u.FirstName, u.LastName, u.Email, u.Phone,
+    )
     return err
 }
 
-func (r *Repository) GetByID(id string) (*User, error) {
+func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
+    query := `SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at
+              FROM users WHERE id=$1`
+
     u := &User{}
-    query := `SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at FROM users WHERE id=$1`
-    err := r.DB.QueryRow(query, id).Scan(&u.ID, &u.CompanyID, &u.FirstName, &u.LastName, &u.Email, &u.Phone, &u.CreatedAt, &u.UpdatedAt)
+    err := r.DB.QueryRowContext(ctx, query, id).Scan(
+        &u.ID, &u.CompanyID, &u.FirstName, &u.LastName, &u.Email, &u.Phone,
+        &u.CreatedAt, &u.UpdatedAt,
+    )
+
+    return u, err
+}
+
+func (r *Repository) GetByCompany(ctx context.Context, companyID string) ([]User, error) {
+    query := `SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at
+              FROM users WHERE company_id=$1`
+
+    rows, err := r.DB.QueryContext(ctx, query, companyID)
     if err != nil {
         return nil, err
     }
-    return u, nil
+    defer rows.Close()
+
+    var users []User
+    for rows.Next() {
+        var u User
+        err := rows.Scan(&u.ID, &u.CompanyID, &u.FirstName, &u.LastName, &u.Email, &u.Phone,
+            &u.CreatedAt, &u.UpdatedAt)
+        if err != nil {
+            return nil, err
+        }
+        users = append(users, u)
+    }
+
+    return users, nil
+}
+
+func (r *Repository) Update(ctx context.Context, u *User) error {
+    query := `UPDATE users SET first_name=$2, last_name=$3, email=$4, phone=$5,
+              updated_at=NOW() WHERE id=$1`
+
+    _, err := r.DB.ExecContext(ctx, query,
+        u.ID, u.FirstName, u.LastName, u.Email, u.Phone,
+    )
+    return err
+}
+
+func (r *Repository) Delete(ctx context.Context, id string) error {
+    query := `DELETE FROM users WHERE id=$1`
+    _, err := r.DB.ExecContext(ctx, query, id)
+    return err
 }
