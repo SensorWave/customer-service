@@ -27,7 +27,7 @@ func (s *Service) GetCompanyByID(ctx context.Context, id string) (*Company, erro
     return s.Repo.GetByID(ctx, id)
 }
 
-func (s *Service) GetAllCompanies(ctx context.Context) ([]Company, error) {
+func (s *Service) GetAllCompanies(ctx context.Context) ([]*Company, error) {
     return s.Repo.GetAll(ctx)
 }
 
