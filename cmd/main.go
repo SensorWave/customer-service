@@ -1,65 +1,90 @@
 package main
 
 import (
-    "customer-service/config"
-    company "customer-service/internal/company"
-    user "customer-service/internal/user"
-    "customer-service/internal/event"
-    "database/sql"
-    "github.com/gin-gonic/gin"
-    _ "github.com/lib/pq"
-    "github.com/streadway/amqp"
-    "log"
+	"customer-service/config"
+	company "customer-service/internal/company"
+	"customer-service/internal/event"
+	user "customer-service/internal/user"
+	"database/sql"
+	"log"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
+	"github.com/streadway/amqp"
 )
 
 func main() {
-    cfg := config.LoadConfig()
+	cfg := config.LoadConfig()
 
-    // Connexion à PostgreSQL
-    db, err := sql.Open("postgres", cfg.PostgresDSN())
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer db.Close()
+	// Connexion à PostgreSQL
+	log.Println("Connecting to Postgres with DSN:", cfg.PostgresDSN())
+	db, err := sql.Open("postgres", cfg.PostgresDSN())
+	if err != nil {
+		log.Fatal("Cannot open PostgreSQL:", err)
+	}
+	defer db.Close()
 
-    // Connexion à RabbitMQ
-    conn, err := amqp.Dial(cfg.RabbitMQURL())
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer conn.Close()
+	if err := db.Ping(); err != nil {
+		log.Fatal("Cannot connect to PostgreSQL:", err)
+	}
+	log.Println("✅ Connected to PostgreSQL")
 
-    ch, err := conn.Channel()
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer ch.Close()
+	// Connexion à RabbitMQ avec retry
+	var conn *amqp.Connection
+	for i := 0; i < 10; i++ {
+		conn, err = amqp.Dial(cfg.RabbitMQURL())
+		if err == nil {
+			break
+		}
+		log.Println("RabbitMQ not ready, retrying in 3s...")
+		time.Sleep(3 * time.Second)
+	}
+	if err != nil {
+		log.Fatal("Failed to connect to RabbitMQ after retries:", err)
+	}
+	defer conn.Close()
+	log.Println("✅ Connected to RabbitMQ")
 
-    // Déclarer l'échange pour les événements
-    err = ch.ExchangeDeclare("customer_events", "topic", true, false, false, false, nil)
-    if err != nil {
-        log.Fatal(err)
-    }
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatal("Failed to open RabbitMQ channel:", err)
+	}
+	defer ch.Close()
 
-    publisher := event.NewPublisher(ch, "customer_events")
+	// Déclarer l'échange pour les événements
+	err = ch.ExchangeDeclare("customer_events", "topic", true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Failed to declare exchange:", err)
+	}
 
-    // Repositories
-    companyRepo := company.NewRepository(db)
-    userRepo := user.NewRepository(db)
+	publisher := event.NewPublisher(ch, "customer_events")
 
-    // Services
-    companyService := company.NewService(companyRepo, publisher)
-    userService := user.NewService(userRepo, companyRepo, publisher)
+	// Repositories
+	companyRepo := company.NewRepository(db)
+	userRepo := user.NewRepository(db)
 
-    // Handlers
-    companyHandler := company.NewHandler(companyService)
-    userHandler := user.NewHandler(userService)
+	// Services
+	companyService := company.NewService(companyRepo, publisher)
+	userService := user.NewService(userRepo, companyRepo, publisher)
 
-    // Router Gin
-    r := gin.Default()
-    companyHandler.RegisterRoutes(r)
-    userHandler.RegisterRoutes(r)
+	// Handlers
+	companyHandler := company.NewHandler(companyService)
+	userHandler := user.NewHandler(userService)
 
-    log.Println("Starting Customer Service on :8080")
-    r.Run(":8080")
+	// Router Gin
+	r := gin.Default()
+
+	// Healthcheck pour Docker
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	companyHandler.RegisterRoutes(r)
+	userHandler.RegisterRoutes(r)
+
+	log.Println("Customer Service running on :8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("Failed to run server:", err)
+	}
 }
