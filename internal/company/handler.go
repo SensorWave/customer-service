@@ -18,8 +18,8 @@ func NewHandler(s *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	companyGroup := r.Group("/companies")
 	{
-		companyGroup.POST("/", h.CreateCompany)
-		companyGroup.GET("/", h.GetAllCompanies)
+		companyGroup.POST("", h.CreateCompany)
+		companyGroup.GET("", h.GetAllCompanies)
 		companyGroup.GET("/:id", h.GetCompanyByID)
 		companyGroup.PUT("/:id", h.UpdateCompany)
 		companyGroup.DELETE("/:id", h.DeleteCompany)
