@@ -4,7 +4,6 @@ import (
     "context"
     "database/sql"
     "errors"
-    "time"
 )
 
 type Repository struct {
@@ -16,6 +15,17 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 // ---------- CREATE ----------
+
+/*
+curl -X POST http://localhost:8080/companies \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "Acme Corp",
+        "email": "contact@acme.com",
+        "phone": "0601020304",
+        "address": "42 rue de Paris"
+    }'
+*/
 func (r *Repository) Create(ctx context.Context, c *Company) error {
     query := `
         INSERT INTO companies (id, name, email, phone, address, created_at, updated_at)
@@ -28,6 +38,10 @@ func (r *Repository) Create(ctx context.Context, c *Company) error {
 }
 
 // ---------- GET BY ID ----------
+
+/*
+curl http://localhost:8080/companies/<COMPANY_ID>
+*/
 func (r *Repository) GetByID(ctx context.Context, id string) (*Company, error) {
     query := `
         SELECT id, name, email, phone, address, created_at, updated_at
@@ -50,6 +64,10 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Company, error) {
 }
 
 // ---------- GET ALL ----------
+
+/*
+curl http://localhost:8080/companies
+*/
 func (r *Repository) GetAll(ctx context.Context) ([]*Company, error) {
     query := `
         SELECT id, name, email, phone, address, created_at, updated_at
@@ -81,6 +99,18 @@ func (r *Repository) GetAll(ctx context.Context) ([]*Company, error) {
 }
 
 // ---------- UPDATE ----------
+
+/*
+curl -X PUT http://localhost:8080/companies/<COMPANY_ID> \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "Acme Corporation Updated",
+        "email": "support@acme.com",
+        "phone": "0707070707",
+        "address": "100 avenue de Lyon"
+    }'
+*/
+
 func (r *Repository) Update(ctx context.Context, c *Company) error {
     query := `
         UPDATE companies
@@ -102,6 +132,10 @@ func (r *Repository) Update(ctx context.Context, c *Company) error {
 }
 
 // ---------- DELETE ----------
+
+/*
+curl -X DELETE http://localhost:8080/companies/<COMPANY_ID>
+*/
 func (r *Repository) Delete(ctx context.Context, id string) error {
     query := `DELETE FROM companies WHERE id=$1`
 
