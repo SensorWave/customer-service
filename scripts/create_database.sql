@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS customer_service_db;
-CREATE DATABASE customer_service_db;
-\c customer_service_db;
+-- DROP DATABASE IF EXISTS customer_service_db;
+-- CREATE DATABASE customer_service_db;
+-- \c customer_service_db;
 
 -- Drop tables (in dependency order)
 DROP TABLE IF EXISTS users;
