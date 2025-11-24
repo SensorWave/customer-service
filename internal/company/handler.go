@@ -2,9 +2,9 @@ package company
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -33,9 +33,6 @@ func (h *Handler) CreateCompany(c *gin.Context) {
 		return
 	}
 
-	// Génère un ID UUID v4
-	company.ID = uuid.NewString()
-
 	// Passe le context HTTP -> service
 	if err := h.Service.CreateCompany(c.Request.Context(), &company); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -46,7 +43,12 @@ func (h *Handler) CreateCompany(c *gin.Context) {
 }
 
 func (h *Handler) GetCompanyByID(c *gin.Context) {
-	id := c.Param("id")
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid company ID"})
+		return
+	}
 
 	company, err := h.Service.GetCompanyByID(c.Request.Context(), id)
 	if err != nil {
@@ -86,7 +88,13 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCompany(c *gin.Context) {
-	id := c.Param("id")
+	// Récupère l'ID depuis l'URL et convertit en int
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid company ID"})
+		return
+	}
 
 	if err := h.Service.DeleteCompany(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
