@@ -1,4 +1,8 @@
--- Table des entreprises
+DROP DATABASE IF EXISTS customer_service_db;
+CREATE DATABASE customer_service_db;
+USE customer_service_db;
+
+-- Companies table
 CREATE TABLE IF NOT EXISTS companies (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -9,7 +13,7 @@ CREATE TABLE IF NOT EXISTS companies (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Table des utilisateurs
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(36) PRIMARY KEY,
     company_id VARCHAR(36) NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
