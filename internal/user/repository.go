@@ -90,7 +90,7 @@ func (r *Repository) GetByCompany(ctx context.Context, companyID int) ([]User, e
 curl -X PUT http://localhost:8080/users/<USER_ID> \
     -H "Content-Type: application/json" \
     -d '{
-        "company_id": "3",
+        "company_id": 3,
         "first_name": "Johnny",
         "last_name": "Doe",
         "email": "johnny.doe@acme.com",
