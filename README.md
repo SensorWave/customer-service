@@ -23,6 +23,8 @@ Il utilise **PostgreSQL** comme base de données, **RabbitMQ** pour la communica
 │   │ ├── company/      # Logique métier "Company"
 │   │ └── user/         # Logique métier "User"
 │   └── event/          # Publication RabbitMQ
+├── routes/
+│   └── route.go        # Route de l'application
 ├── docker-compose.yml  # Stack complète (Go + Postgres + RabbitMQ)
 ├── Dockerfile          # Build du microservice Go
 ├── go.mod / go.sum     # Dépendances Go
@@ -55,12 +57,14 @@ docker compose up --build
 
 📋 API (via Postman, curl, etc.)
 
-| Méthode | Endpoint         | Description                              |
-|----------|------------------|------------------------------------------|
-| POST     | `/companies`       | Créer une entreprise                     |
-| GET      | `/companies/:id`   | Récupérer une entreprise                 |
-| POST     | `/users`           | Créer un utilisateur lié à une entreprise |
-| GET      | `/users/:id`       | Récupérer un utilisateur                 |
+| Méthode | Endpoint               | Description                               |
+| ------- | ---------------------- | ----------------------------------------- |
+| POST    | `/companies`           | Créer une entreprise                      |
+| GET     | `/companies/:id`       | Récupérer une entreprise                  |
+| POST    | `/companies/:id/users` | Créer un utilisateur lié à une entreprise |
+| GET     | `/users/:id`           | Récupérer un utilisateur                  |
+
+> Des CURLs samples sont disponible dans les `repository` propre à chaque ressource.
 
 ## 🗄️ Accès à PostgreSQL
 
