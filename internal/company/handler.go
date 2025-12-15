@@ -15,17 +15,6 @@ func NewHandler(s *Service) *Handler {
 	return &Handler{Service: s}
 }
 
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
-	companyGroup := r.Group("/companies")
-	{
-		companyGroup.POST("", h.CreateCompany)
-		companyGroup.GET("", h.GetAllCompanies)
-		companyGroup.GET("/:id", h.GetCompanyByID)
-		companyGroup.PUT("/:id", h.UpdateCompany)
-		companyGroup.DELETE("/:id", h.DeleteCompany)
-	}
-}
-
 func (h *Handler) CreateCompany(c *gin.Context) {
 	var company Company
 	if err := c.ShouldBindJSON(&company); err != nil {

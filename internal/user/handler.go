@@ -15,30 +15,23 @@ func NewHandler(s *Service) *Handler {
 	return &Handler{Service: s}
 }
 
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
-	userGroup := r.Group("/users")
-	{
-		userGroup.POST("", h.CreateUser)
-		userGroup.GET("/:id", h.GetUserByID)
-		userGroup.PUT("/:id", h.UpdateUser)
-		userGroup.DELETE("/:id", h.DeleteUser)
-
-		// TODO : Add endpoint to get users by company
-	}
-}
-
 // --------- CREATE ----------
 func (h *Handler) CreateUser(c *gin.Context) {
+	companyIDStr := c.Param("companyId")
+
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid company id"})
+		return
+	}
+
 	var user User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if user.CompanyID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "company_id is required"})
-		return
-	}
+	user.CompanyID = companyID
 
 	if err := h.Service.CreateUser(c.Request.Context(), &user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -48,14 +41,18 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+// --------- GET BY COMPANY ----------
 func (h *Handler) GetUsersByCompany(c *gin.Context) {
-	companyIDStr := c.Param("companyID")
+	companyIDStr := c.Param("companyId")
 	companyID, err := strconv.Atoi(companyIDStr)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid companyID"})
 		return
 	}
+
 	users, err := h.Service.GetUsersByCompany(c.Request.Context(), companyID)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -84,16 +81,17 @@ func (h *Handler) GetUserByID(c *gin.Context) {
 
 // --------- UPDATE ----------
 func (h *Handler) UpdateUser(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
 
 	var input User
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if input.CompanyID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "company_id is required"})
 		return
 	}
 
