@@ -17,9 +17,9 @@ func NewHandler(s *Service) *Handler {
 
 // --------- CREATE ----------
 func (h *Handler) CreateUser(c *gin.Context) {
-	companyIDStr := c.Param("companyId")
+	companyIdStr := c.Param("id")
+	companyId, err := strconv.Atoi(companyIdStr)
 
-	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid company id"})
 		return
@@ -31,7 +31,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	user.CompanyID = companyID
+	user.CompanyID = companyId
 
 	if err := h.Service.CreateUser(c.Request.Context(), &user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -43,15 +43,15 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 // --------- GET BY COMPANY ----------
 func (h *Handler) GetUsersByCompany(c *gin.Context) {
-	companyIDStr := c.Param("companyId")
-	companyID, err := strconv.Atoi(companyIDStr)
+	companyIdStr := c.Param("id")
+	companyId, err := strconv.Atoi(companyIdStr)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid companyID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid companyId"})
 		return
 	}
 
-	users, err := h.Service.GetUsersByCompany(c.Request.Context(), companyID)
+	users, err := h.Service.GetUsersByCompany(c.Request.Context(), companyId)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
