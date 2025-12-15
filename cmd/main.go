@@ -2,11 +2,14 @@ package main
 
 import (
 	"customer-service/config"
-	company "customer-service/internal/company"
+	"customer-service/internal/company"
 	"customer-service/internal/event"
-	user "customer-service/internal/user"
+	"customer-service/internal/user"
+	"customer-service/routes"
 	"database/sql"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,22 +20,21 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	// Connexion à PostgreSQL
+	// PostgreSQL connection
 	log.Println("Connecting to Postgres with DSN:", cfg.PostgresDSN())
 	db, err := sql.Open("postgres", cfg.PostgresDSN())
 	if err != nil {
 		log.Fatal("Cannot open PostgreSQL:", err)
 	}
 	defer db.Close()
-
 	if err := db.Ping(); err != nil {
 		log.Fatal("Cannot connect to PostgreSQL:", err)
 	}
 	log.Println("✅ Connected to PostgreSQL")
 
-	// Connexion à RabbitMQ avec retry
+	// RabbitMQ connection with retry
 	var conn *amqp.Connection
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		conn, err = amqp.Dial(cfg.RabbitMQURL())
 		if err == nil {
 			break
@@ -52,7 +54,7 @@ func main() {
 	}
 	defer ch.Close()
 
-	// Déclarer l'échange pour les événements
+	// Declare exchange
 	err = ch.ExchangeDeclare("customer_events", "topic", true, false, false, false, nil)
 	if err != nil {
 		log.Fatal("Failed to declare exchange:", err)
@@ -72,16 +74,20 @@ func main() {
 	companyHandler := company.NewHandler(companyService)
 	userHandler := user.NewHandler(userService)
 
-	// Router Gin
+	// Router
 	r := gin.Default()
 
-	// Healthcheck pour Docker
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
+	// Fetch trusted proxies from .env
+	proxies := os.Getenv("TRUSTED_PROXIES")
+	if proxies != "" {
+		proxyList := strings.Split(proxies, ",")
+		if err := r.SetTrustedProxies(proxyList); err != nil {
+			panic("invalid trusted proxies: " + err.Error())
+		}
+	}
 
-	companyHandler.RegisterRoutes(r)
-	userHandler.RegisterRoutes(r)
+	// Register all routes
+	routes.RegisterRoutes(r, companyHandler, userHandler)
 
 	log.Println("Customer Service running on :8080")
 	if err := r.Run(":8080"); err != nil {
