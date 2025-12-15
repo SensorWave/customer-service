@@ -102,10 +102,22 @@ func (r *Repository) Update(ctx context.Context, u *User) error {
 	query := `UPDATE users SET first_name=$2, last_name=$3, email=$4, phone=$5,
               updated_at=NOW() WHERE id=$1`
 
-	_, err := r.DB.ExecContext(ctx, query,
+	res, err := r.DB.ExecContext(ctx, query,
 		u.ID, u.FirstName, u.LastName, u.Email, u.Phone,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 /* ---------- DELETE ---------- */
