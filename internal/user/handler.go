@@ -2,9 +2,9 @@ package user
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -40,8 +40,6 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	user.ID = uuid.NewString()
-
 	if err := h.Service.CreateUser(c.Request.Context(), &user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -50,9 +48,13 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-// --------- GET ALL BY COMPANY ----------
 func (h *Handler) GetUsersByCompany(c *gin.Context) {
-	companyID := c.Param("companyID")
+	companyIDStr := c.Param("companyID")
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid companyID"})
+		return
+	}
 	users, err := h.Service.GetUsersByCompany(c.Request.Context(), companyID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -64,7 +66,12 @@ func (h *Handler) GetUsersByCompany(c *gin.Context) {
 
 // --------- GET BY ID ----------
 func (h *Handler) GetUserByID(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
 
 	user, err := h.Service.GetUserByID(c.Request.Context(), id)
 	if err != nil {
@@ -102,7 +109,12 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 // --------- DELETE ----------
 func (h *Handler) DeleteUser(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
 
 	if err := h.Service.DeleteUser(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
