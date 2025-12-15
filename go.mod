@@ -6,7 +6,6 @@ toolchain go1.24.9
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
 	github.com/streadway/amqp v1.1.0
 )
