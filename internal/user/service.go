@@ -18,12 +18,7 @@ func NewService(repo *Repository, companyRepo *company.Repository, pub *event.Pu
 }
 
 func (s *Service) CreateUser(ctx context.Context, u *User) error {
-	// Check if the company exists
-	companyID, err := strconv.Atoi(u.CompanyID)
-	if err != nil {
-		return err
-	}
-	if _, err := s.CompanyRepo.GetByID(ctx, companyID); err != nil {
+	if _, err := s.CompanyRepo.GetByID(ctx, u.CompanyID); err != nil {
 		return err
 	}
 
