@@ -1,96 +1,96 @@
 # 🧩 Customer Service
 
-Ce projet est un microservice en **Go** permettant la gestion des **entreprises (companies)** et des **utilisateurs (users)**.  
-Il utilise **PostgreSQL** comme base de données, **RabbitMQ** pour la communication asynchrone entre microservices, et tourne entièrement via **Docker Compose**.
+This project is a **Go** microservice for managing **companies** and **users**.  
+It uses **PostgreSQL** as the database, **RabbitMQ** for asynchronous communication between microservices, and runs entirely via **Docker Compose**.
 
-## 🚀 Fonctionnalités
+## 🚀 Features
 
-- Gestion des **entreprises** (`companies`)
-- Gestion des **utilisateurs** (`users`)
-- Publication d’événements RabbitMQ (`CompanyCreated`, `UserCreated`)
-- Architecture micro-service modulaire et extensible
-- Persistance via PostgreSQL
+- Management of **companies** (`companies`)
+- Management of **users** (`users`)
+- Publishing RabbitMQ events (`CompanyCreated`, `UserCreated`)
+- Modular and extensible microservice architecture
+- Persistence via PostgreSQL
 
 ## 🧱 Architecture
 
 ```bash
 ├── cmd/
-│   └── main.go         # Point d’entrée de l’application
+│   └── main.go         # Application entry point
 ├── config/
-│   └── config.go       # Chargement de la configuration & env
+│   └── config.go       # Configuration & env loading
 ├── internal/
 │   ├── customer/
-│   │ ├── company/      # Logique métier "Company"
-│   │ └── user/         # Logique métier "User"
-│   └── event/          # Publication RabbitMQ
+│   │ ├── company/      # "Company" business logic
+│   │ └── user/         # "User" business logic
+│   └── event/          # RabbitMQ publishing
 ├── routes/
-│   └── route.go        # Route de l'application
-├── docker-compose.yml  # Stack complète (Go + Postgres + RabbitMQ)
-├── Dockerfile          # Build du microservice Go
-├── go.mod / go.sum     # Dépendances Go
-└── .env.example        # Variables d’environnement
+│   └── route.go        # Application routes
+├── docker-compose.yml  # Full stack (Go + Postgres + RabbitMQ)
+├── Dockerfile          # Go microservice build
+├── go.mod / go.sum     # Go dependencies
+└── .env.example        # Environment variables
 ```
 
-## ⚙️ Prérequis
+## ⚙️ Prerequisites
 
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
-- (Optionnel) [psql](https://www.postgresql.org/download/) pour se connecter à la DB
+- (Optionnel) [psql](https://www.postgresql.org/download/) to connect to the DB
 
 ## 🔧 Configuration
 
-Crée un fichier `.env` à la racine du projet et remplir les variables :
+Create a `.env` file at the root of the project and fill in the variables:
 
 ```bash
 cp .env.example .env
 ```
 
-## 🐳 Lancer le projet
+## 🐳 Running the project
 
-Depuis la racine du projet :
+From the root of the project:
 
 ```bash
 docker compose up --build
 ```
 
-## 🧠 Utilisation
+## 🧠 Usage
 
 📋 API (via Postman, curl, etc.)
 
-| Méthode | Endpoint               | Description                               |
-| ------- | ---------------------- | ----------------------------------------- |
-| POST    | `/companies`           | Créer une entreprise                      |
-| GET     | `/companies/:id`       | Récupérer une entreprise                  |
-| POST    | `/companies/:id/users` | Créer un utilisateur lié à une entreprise |
-| GET     | `/users/:id`           | Récupérer un utilisateur                  |
+| Method | Endpoint               | Description                       |
+| ------ | ---------------------- | --------------------------------- |
+| POST   | `/companies`           | Create a company                  |
+| GET    | `/companies/:id`       | Retrieve a company                |
+| POST   | `/companies/:id/users` | Create a user linked to a company |
+| GET    | `/users/:id`           | Retrieve a user                   |
 
-> Des CURLs samples sont disponible dans les `repository` propre à chaque ressource.
+> Sample CURLs are available in each resource-specific `repository`.
 
-## 🗄️ Accès à PostgreSQL
+## 🗄️ Accessing PostgreSQL
 
-Depuis ton terminal :
+From your terminal:
 
 ```bash
 psql -h localhost -p 5433 -U user -d customers
 ```
 
-Puis :
+Then:
 
 ```sql
-\dt -- Liste des tables
+\dt -- List tables
 SELECT * FROM companies;
 SELECT * FROM users;
 ```
 
-## 🧹 Nettoyage
+## 🧹 Cleanup
 
-Pour arrêter et supprimer les containers :
+To stop and remove containers:
 
 ```bash
 docker compose down
 ```
 
-Pour tout supprimer (containers + volumes + images) :
+To remove everything (containers + volumes + images):
 
 ```bash
 docker compose down -v --rmi all
@@ -98,5 +98,5 @@ docker compose down -v --rmi all
 
 ## 📘 Notes
 
-- Le projet est extensible : tu peux ajouter d’autres microservices qui consomment les événements RabbitMQ.
-- Le code est organisé selon une structure modulaire, facilitant la maintenance et les tests unitaires.
+- The project is extensible: you can add other microservices that consume RabbitMQ events.
+- The code is organized in a modular structure, making maintenance and unit testing easier.
