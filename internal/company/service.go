@@ -2,16 +2,19 @@ package company
 
 import (
 	"context"
-	"customer-service/internal/event"
 	"strconv"
 )
 
-type Service struct {
-	Repo      *Repository
-	Publisher *event.Publisher
+type Publisher interface {
+	Publish(routingKey string, payload interface{})
 }
 
-func NewService(repo *Repository, pub *event.Publisher) *Service {
+type Service struct {
+	Repo      *Repository
+	Publisher Publisher
+}
+
+func NewService(repo *Repository, pub Publisher) *Service {
 	return &Service{Repo: repo, Publisher: pub}
 }
 
@@ -20,7 +23,9 @@ func (s *Service) CreateCompany(ctx context.Context, c *Company) error {
 		return err
 	}
 
-	s.Publisher.Publish("CompanyCreated", c)
+	if s.Publisher != nil {
+		s.Publisher.Publish("CompanyCreated", c)
+	}
 	return nil
 }
 
@@ -37,7 +42,9 @@ func (s *Service) UpdateCompany(ctx context.Context, c *Company) error {
 		return err
 	}
 
-	s.Publisher.Publish("CompanyUpdated", c)
+	if s.Publisher != nil {
+		s.Publisher.Publish("CompanyUpdated", c)
+	}
 	return nil
 }
 
@@ -46,6 +53,8 @@ func (s *Service) DeleteCompany(ctx context.Context, id int) error {
 		return err
 	}
 
-	s.Publisher.Publish("CompanyDeleted", map[string]string{"id": strconv.Itoa(id)})
+	if s.Publisher != nil {
+		s.Publisher.Publish("CompanyDeleted", map[string]string{"id": strconv.Itoa(id)})
+	}
 	return nil
 }
