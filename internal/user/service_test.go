@@ -4,16 +4,29 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	company "customer-service/internal/company"
-	"customer-service/internal/event"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func newTestService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
+type publishedEvent struct {
+	routingKey string
+	payload    interface{}
+}
+
+type spyPublisher struct {
+	events []publishedEvent
+}
+
+func (s *spyPublisher) Publish(routingKey string, payload interface{}) {
+	s.events = append(s.events, publishedEvent{routingKey: routingKey, payload: payload})
+}
+
+func newTestService(t *testing.T) (*Service, sqlmock.Sqlmock, *spyPublisher, func()) {
 	t.Helper()
 
 	db, mock, err := sqlmock.New()
@@ -21,21 +34,22 @@ func newTestService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
+	spy := &spyPublisher{}
 	svc := NewService(
 		NewRepository(db),
 		company.NewRepository(db),
-		&event.Publisher{},
+		spy,
 	)
 
 	cleanup := func() {
 		_ = db.Close()
 	}
 
-	return svc, mock, cleanup
+	return svc, mock, spy, cleanup
 }
 
 func TestService_CreateUser_Success(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -64,6 +78,15 @@ func TestService_CreateUser_Success(t *testing.T) {
 	if u.ID != 12 {
 		t.Fatalf("expected user ID to be set to 12, got %d", u.ID)
 	}
+	if len(spy.events) != 1 {
+		t.Fatalf("expected 1 published event, got %d", len(spy.events))
+	}
+	if spy.events[0].routingKey != "UserCreated" {
+		t.Fatalf("expected UserCreated event, got %s", spy.events[0].routingKey)
+	}
+	if spy.events[0].payload != u {
+		t.Fatal("expected published payload to be the created user pointer")
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -71,7 +94,7 @@ func TestService_CreateUser_Success(t *testing.T) {
 }
 
 func TestService_CreateUser_CompanyLookupError(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	u := &User{CompanyID: 99}
@@ -84,6 +107,9 @@ func TestService_CreateUser_CompanyLookupError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from CreateUser, got nil")
 	}
+	if len(spy.events) != 0 {
+		t.Fatalf("expected no published events, got %d", len(spy.events))
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -91,7 +117,7 @@ func TestService_CreateUser_CompanyLookupError(t *testing.T) {
 }
 
 func TestService_GetUserByID(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, _, cleanup := newTestService(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -115,7 +141,7 @@ func TestService_GetUserByID(t *testing.T) {
 }
 
 func TestService_GetUsersByCompany(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, _, cleanup := newTestService(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -141,7 +167,7 @@ func TestService_GetUsersByCompany(t *testing.T) {
 }
 
 func TestService_UpdateUser_Success(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	u := &User{
@@ -160,6 +186,15 @@ func TestService_UpdateUser_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateUser returned error: %v", err)
 	}
+	if len(spy.events) != 1 {
+		t.Fatalf("expected 1 published event, got %d", len(spy.events))
+	}
+	if spy.events[0].routingKey != "UserUpdated" {
+		t.Fatalf("expected UserUpdated event, got %s", spy.events[0].routingKey)
+	}
+	if spy.events[0].payload != u {
+		t.Fatal("expected published payload to be the updated user pointer")
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -167,7 +202,7 @@ func TestService_UpdateUser_Success(t *testing.T) {
 }
 
 func TestService_UpdateUser_NotFound(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	u := &User{ID: 123}
@@ -180,6 +215,9 @@ func TestService_UpdateUser_NotFound(t *testing.T) {
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("expected sql.ErrNoRows, got %v", err)
 	}
+	if len(spy.events) != 0 {
+		t.Fatalf("expected no published events, got %d", len(spy.events))
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -187,7 +225,7 @@ func TestService_UpdateUser_NotFound(t *testing.T) {
 }
 
 func TestService_DeleteUser(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	mock.ExpectExec(`DELETE FROM users WHERE id=\$1`).
@@ -198,6 +236,16 @@ func TestService_DeleteUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteUser returned error: %v", err)
 	}
+	if len(spy.events) != 1 {
+		t.Fatalf("expected 1 published event, got %d", len(spy.events))
+	}
+	if spy.events[0].routingKey != "UserDeleted" {
+		t.Fatalf("expected UserDeleted event, got %s", spy.events[0].routingKey)
+	}
+	expectedPayload := map[string]string{"id": "77"}
+	if !reflect.DeepEqual(spy.events[0].payload, expectedPayload) {
+		t.Fatalf("unexpected delete payload: %#v", spy.events[0].payload)
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -205,7 +253,7 @@ func TestService_DeleteUser(t *testing.T) {
 }
 
 func TestService_DeleteUser_Error(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	mock.ExpectExec(`DELETE FROM users WHERE id=\$1`).
@@ -215,6 +263,9 @@ func TestService_DeleteUser_Error(t *testing.T) {
 	err := svc.DeleteUser(context.Background(), 77)
 	if err == nil {
 		t.Fatal("expected error from DeleteUser, got nil")
+	}
+	if len(spy.events) != 0 {
+		t.Fatalf("expected no published events, got %d", len(spy.events))
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

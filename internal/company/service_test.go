@@ -3,15 +3,27 @@ package company
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
-
-	"customer-service/internal/event"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func newTestService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
+type publishedEvent struct {
+	routingKey string
+	payload    interface{}
+}
+
+type spyPublisher struct {
+	events []publishedEvent
+}
+
+func (s *spyPublisher) Publish(routingKey string, payload interface{}) {
+	s.events = append(s.events, publishedEvent{routingKey: routingKey, payload: payload})
+}
+
+func newTestService(t *testing.T) (*Service, sqlmock.Sqlmock, *spyPublisher, func()) {
 	t.Helper()
 
 	db, mock, err := sqlmock.New()
@@ -19,17 +31,18 @@ func newTestService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
 
-	svc := NewService(NewRepository(db), &event.Publisher{})
+	spy := &spyPublisher{}
+	svc := NewService(NewRepository(db), spy)
 
 	cleanup := func() {
 		_ = db.Close()
 	}
 
-	return svc, mock, cleanup
+	return svc, mock, spy, cleanup
 }
 
 func TestService_CreateCompany_Success(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	c := &Company{
@@ -50,6 +63,15 @@ func TestService_CreateCompany_Success(t *testing.T) {
 	if c.ID != "3" {
 		t.Fatalf("expected company ID to be set to 3, got %s", c.ID)
 	}
+	if len(spy.events) != 1 {
+		t.Fatalf("expected 1 published event, got %d", len(spy.events))
+	}
+	if spy.events[0].routingKey != "CompanyCreated" {
+		t.Fatalf("expected CompanyCreated event, got %s", spy.events[0].routingKey)
+	}
+	if spy.events[0].payload != c {
+		t.Fatal("expected published payload to be the created company pointer")
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -57,7 +79,7 @@ func TestService_CreateCompany_Success(t *testing.T) {
 }
 
 func TestService_CreateCompany_Error(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	c := &Company{Name: "Acme Corp"}
@@ -70,6 +92,9 @@ func TestService_CreateCompany_Error(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from CreateCompany, got nil")
 	}
+	if len(spy.events) != 0 {
+		t.Fatalf("expected no published events, got %d", len(spy.events))
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -77,7 +102,7 @@ func TestService_CreateCompany_Error(t *testing.T) {
 }
 
 func TestService_GetCompanyByID(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, _, cleanup := newTestService(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -101,7 +126,7 @@ func TestService_GetCompanyByID(t *testing.T) {
 }
 
 func TestService_GetAllCompanies(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, _, cleanup := newTestService(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -126,7 +151,7 @@ func TestService_GetAllCompanies(t *testing.T) {
 }
 
 func TestService_UpdateCompany_Success(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	c := &Company{
@@ -145,6 +170,15 @@ func TestService_UpdateCompany_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateCompany returned error: %v", err)
 	}
+	if len(spy.events) != 1 {
+		t.Fatalf("expected 1 published event, got %d", len(spy.events))
+	}
+	if spy.events[0].routingKey != "CompanyUpdated" {
+		t.Fatalf("expected CompanyUpdated event, got %s", spy.events[0].routingKey)
+	}
+	if spy.events[0].payload != c {
+		t.Fatal("expected published payload to be the updated company pointer")
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -152,7 +186,7 @@ func TestService_UpdateCompany_Success(t *testing.T) {
 }
 
 func TestService_UpdateCompany_NotFound(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	c := &Company{ID: "999"}
@@ -165,6 +199,9 @@ func TestService_UpdateCompany_NotFound(t *testing.T) {
 	if err == nil || err.Error() != "company not found" {
 		t.Fatalf("expected company not found error, got %v", err)
 	}
+	if len(spy.events) != 0 {
+		t.Fatalf("expected no published events, got %d", len(spy.events))
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -172,7 +209,7 @@ func TestService_UpdateCompany_NotFound(t *testing.T) {
 }
 
 func TestService_DeleteCompany_Success(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	mock.ExpectExec(`DELETE FROM companies WHERE id=\$1`).
@@ -183,6 +220,16 @@ func TestService_DeleteCompany_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteCompany returned error: %v", err)
 	}
+	if len(spy.events) != 1 {
+		t.Fatalf("expected 1 published event, got %d", len(spy.events))
+	}
+	if spy.events[0].routingKey != "CompanyDeleted" {
+		t.Fatalf("expected CompanyDeleted event, got %s", spy.events[0].routingKey)
+	}
+	expectedPayload := map[string]string{"id": "77"}
+	if !reflect.DeepEqual(spy.events[0].payload, expectedPayload) {
+		t.Fatalf("unexpected delete payload: %#v", spy.events[0].payload)
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
@@ -190,7 +237,7 @@ func TestService_DeleteCompany_Success(t *testing.T) {
 }
 
 func TestService_DeleteCompany_NotFound(t *testing.T) {
-	svc, mock, cleanup := newTestService(t)
+	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
 	mock.ExpectExec(`DELETE FROM companies WHERE id=\$1`).
@@ -200,6 +247,9 @@ func TestService_DeleteCompany_NotFound(t *testing.T) {
 	err := svc.DeleteCompany(context.Background(), 77)
 	if err == nil || err.Error() != "company not found" {
 		t.Fatalf("expected company not found error, got %v", err)
+	}
+	if len(spy.events) != 0 {
+		t.Fatalf("expected no published events, got %d", len(spy.events))
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

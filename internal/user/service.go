@@ -3,17 +3,20 @@ package user
 import (
 	"context"
 	company "customer-service/internal/company"
-	"customer-service/internal/event"
 	"strconv"
 )
+
+type Publisher interface {
+	Publish(routingKey string, payload interface{})
+}
 
 type Service struct {
 	Repo        *Repository
 	CompanyRepo *company.Repository
-	Publisher   *event.Publisher
+	Publisher   Publisher
 }
 
-func NewService(repo *Repository, companyRepo *company.Repository, pub *event.Publisher) *Service {
+func NewService(repo *Repository, companyRepo *company.Repository, pub Publisher) *Service {
 	return &Service{Repo: repo, CompanyRepo: companyRepo, Publisher: pub}
 }
 
@@ -26,7 +29,9 @@ func (s *Service) CreateUser(ctx context.Context, u *User) error {
 		return err
 	}
 
-	s.Publisher.Publish("UserCreated", u)
+	if s.Publisher != nil {
+		s.Publisher.Publish("UserCreated", u)
+	}
 	return nil
 }
 
@@ -43,7 +48,9 @@ func (s *Service) UpdateUser(ctx context.Context, u *User) error {
 		return err
 	}
 
-	s.Publisher.Publish("UserUpdated", u)
+	if s.Publisher != nil {
+		s.Publisher.Publish("UserUpdated", u)
+	}
 	return nil
 }
 
@@ -52,6 +59,8 @@ func (s *Service) DeleteUser(ctx context.Context, id int) error {
 		return err
 	}
 
-	s.Publisher.Publish("UserDeleted", map[string]string{"id": strconv.Itoa(id)})
+	if s.Publisher != nil {
+		s.Publisher.Publish("UserDeleted", map[string]string{"id": strconv.Itoa(id)})
+	}
 	return nil
 }
