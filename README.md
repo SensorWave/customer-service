@@ -45,6 +45,18 @@ Create a `.env` file at the root of the project and fill in the variables:
 cp .env.example .env
 ```
 
+For local Keycloak, set at least these values:
+
+```bash
+KEYCLOAK_ISSUER=http://localhost:8888/realms/dev
+KEYCLOAK_JWKS_URL=http://localhost:8888/realms/dev/protocol/openid-connect/certs
+KEYCLOAK_AUDIENCE=
+```
+
+`KEYCLOAK_AUDIENCE` is optional and can stay empty until audience validation is added.
+The service now refuses to start if `KEYCLOAK_ISSUER` or `KEYCLOAK_JWKS_URL` is missing.
+If `customer-service` runs in Docker while Keycloak runs on your host machine, replace `localhost` with `host.docker.internal`.
+
 ## 🐳 Running the project
 
 From the root of the project:

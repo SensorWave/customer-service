@@ -18,7 +18,10 @@ import (
 )
 
 func main() {
-	cfg := config.LoadConfig()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal("Invalid configuration:", err)
+	}
 
 	// PostgreSQL connection
 	log.Println("Connecting to Postgres with DSN:", cfg.PostgresDSN())
@@ -76,6 +79,7 @@ func main() {
 
 	// Router
 	r := gin.Default()
+	r.Use(routes.WithConfig(cfg))
 
 	// Fetch trusted proxies from .env
 	proxies := os.Getenv("TRUSTED_PROXIES")

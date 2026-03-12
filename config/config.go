@@ -2,32 +2,58 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 )
 
 type Config struct {
-	DBHost     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	RabbitMQ   string
+	DBHost           string
+	DBUser           string
+	DBPassword       string
+	DBName           string
+	RabbitMQ         string
+	KeycloakIssuer   string
+	KeycloakJWKSURL  string
+	KeycloakAudience string
 }
 
-func LoadConfig() *Config {
+func LoadConfig() (*Config, error) {
 	cfg := &Config{
-		DBHost:     os.Getenv("DB_HOST"),
-		DBUser:     os.Getenv("DB_USER"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     os.Getenv("DB_NAME"),
-		RabbitMQ:   os.Getenv("RABBITMQ_HOST"),
+		DBHost:           os.Getenv("DB_HOST"),
+		DBUser:           os.Getenv("DB_USER"),
+		DBPassword:       os.Getenv("DB_PASSWORD"),
+		DBName:           os.Getenv("DB_NAME"),
+		RabbitMQ:         os.Getenv("RABBITMQ_HOST"),
+		KeycloakIssuer:   os.Getenv("KEYCLOAK_ISSUER"),
+		KeycloakJWKSURL:  os.Getenv("KEYCLOAK_JWKS_URL"),
+		KeycloakAudience: os.Getenv("KEYCLOAK_AUDIENCE"),
 	}
 
-	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBPassword == "" || cfg.DBName == "" || cfg.RabbitMQ == "" {
-		log.Fatal("Missing required environment variables")
+	var missing []string
+	requiredValues := []struct {
+		name  string
+		value string
+	}{
+		{name: "DB_HOST", value: cfg.DBHost},
+		{name: "DB_USER", value: cfg.DBUser},
+		{name: "DB_PASSWORD", value: cfg.DBPassword},
+		{name: "DB_NAME", value: cfg.DBName},
+		{name: "RABBITMQ_HOST", value: cfg.RabbitMQ},
+		{name: "KEYCLOAK_ISSUER", value: cfg.KeycloakIssuer},
+		{name: "KEYCLOAK_JWKS_URL", value: cfg.KeycloakJWKSURL},
 	}
 
-	return cfg
+	for _, item := range requiredValues {
+		if item.value == "" {
+			missing = append(missing, item.name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
+	}
+
+	return cfg, nil
 }
 
 func (c *Config) PostgresDSN() string {
