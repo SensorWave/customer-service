@@ -7,26 +7,20 @@ import (
 )
 
 type Config struct {
-	DBHost           string
-	DBUser           string
-	DBPassword       string
-	DBName           string
-	RabbitMQ         string
-	KeycloakIssuer   string
-	KeycloakJWKSURL  string
-	KeycloakAudience string
+	DBHost     string
+	DBUser     string
+	DBPassword string
+	DBName     string
+	RabbitMQ   string
 }
 
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
-		DBHost:           os.Getenv("DB_HOST"),
-		DBUser:           os.Getenv("DB_USER"),
-		DBPassword:       os.Getenv("DB_PASSWORD"),
-		DBName:           os.Getenv("DB_NAME"),
-		RabbitMQ:         os.Getenv("RABBITMQ_HOST"),
-		KeycloakIssuer:   os.Getenv("KEYCLOAK_ISSUER"),
-		KeycloakJWKSURL:  os.Getenv("KEYCLOAK_JWKS_URL"),
-		KeycloakAudience: os.Getenv("KEYCLOAK_AUDIENCE"),
+		DBHost:     os.Getenv("DB_HOST"),
+		DBUser:     os.Getenv("DB_USER"),
+		DBPassword: os.Getenv("DB_PASSWORD"),
+		DBName:     os.Getenv("DB_NAME"),
+		RabbitMQ:   os.Getenv("RABBITMQ_HOST"),
 	}
 
 	var missing []string
@@ -39,8 +33,6 @@ func LoadConfig() (*Config, error) {
 		{name: "DB_PASSWORD", value: cfg.DBPassword},
 		{name: "DB_NAME", value: cfg.DBName},
 		{name: "RABBITMQ_HOST", value: cfg.RabbitMQ},
-		{name: "KEYCLOAK_ISSUER", value: cfg.KeycloakIssuer},
-		{name: "KEYCLOAK_JWKS_URL", value: cfg.KeycloakJWKSURL},
 	}
 
 	for _, item := range requiredValues {
