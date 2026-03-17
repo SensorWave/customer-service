@@ -55,10 +55,8 @@ func TestService_CreateUser_Success(t *testing.T) {
 	now := time.Now()
 	u := &User{
 		CompanyID: 7,
-		FirstName: "John",
-		LastName:  "Doe",
-		Email:     "john@acme.com",
-		Phone:     "0611223344",
+		IDAuthKC:  "kc-acme-001",
+		Role:      "admin",
 	}
 
 	mock.ExpectQuery(`SELECT id, name, email, phone, address, created_at, updated_at\s+FROM companies\s+WHERE id = \$1`).
@@ -67,8 +65,8 @@ func TestService_CreateUser_Success(t *testing.T) {
 			"id", "name", "email", "phone", "address", "created_at", "updated_at",
 		}).AddRow("7", "Acme", "info@acme.com", "0600000000", "Main St", now, now))
 
-	mock.ExpectQuery(`INSERT INTO users \(company_id, first_name, last_name, email, phone, created_at, updated_at\)\s+VALUES \(\$1,\$2,\$3,\$4,\$5,NOW\(\),NOW\(\)\)\s+RETURNING id`).
-		WithArgs(u.CompanyID, u.FirstName, u.LastName, u.Email, u.Phone).
+	mock.ExpectQuery(`INSERT INTO user_companies \(company_id, id_auth_kc, role, created_at, updated_at\)\s+VALUES \(\$1,\$2,\$3,NOW\(\),NOW\(\)\)\s+RETURNING id`).
+		WithArgs(u.CompanyID, u.IDAuthKC, u.Role).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(12))
 
 	err := svc.CreateUser(context.Background(), u)
@@ -121,17 +119,17 @@ func TestService_GetUserByID(t *testing.T) {
 	defer cleanup()
 
 	now := time.Now()
-	mock.ExpectQuery(`SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at\s+FROM users WHERE id=\$1`).
+	mock.ExpectQuery(`SELECT id, company_id, id_auth_kc, role, created_at, updated_at\s+FROM user_companies WHERE id=\$1`).
 		WithArgs(5).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "company_id", "first_name", "last_name", "email", "phone", "created_at", "updated_at",
-		}).AddRow(5, 7, "Jane", "Doe", "jane@acme.com", "0611223344", now, now))
+			"id", "company_id", "id_auth_kc", "role", "created_at", "updated_at",
+		}).AddRow(5, 7, "kc-acme-001", "admin", now, now))
 
 	u, err := svc.GetUserByID(context.Background(), 5)
 	if err != nil {
 		t.Fatalf("GetUserByID returned error: %v", err)
 	}
-	if u.ID != 5 || u.CompanyID != 7 {
+	if u.ID != 5 || u.CompanyID != 7 || u.IDAuthKC != "kc-acme-001" || u.Role != "admin" {
 		t.Fatalf("unexpected user returned: %#v", u)
 	}
 
@@ -145,13 +143,13 @@ func TestService_GetUsersByCompany(t *testing.T) {
 	defer cleanup()
 
 	now := time.Now()
-	mock.ExpectQuery(`SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at\s+FROM users WHERE company_id=\$1`).
+	mock.ExpectQuery(`SELECT id, company_id, id_auth_kc, role, created_at, updated_at\s+FROM user_companies WHERE company_id=\$1`).
 		WithArgs(7).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "company_id", "first_name", "last_name", "email", "phone", "created_at", "updated_at",
+			"id", "company_id", "id_auth_kc", "role", "created_at", "updated_at",
 		}).
-			AddRow(1, 7, "A", "One", "a@acme.com", "0600000001", now, now).
-			AddRow(2, 7, "B", "Two", "b@acme.com", "0600000002", now, now))
+			AddRow(1, 7, "kc-acme-001", "admin", now, now).
+			AddRow(2, 7, "kc-acme-002", "user", now, now))
 
 	users, err := svc.GetUsersByCompany(context.Background(), 7)
 	if err != nil {
@@ -171,15 +169,13 @@ func TestService_UpdateUser_Success(t *testing.T) {
 	defer cleanup()
 
 	u := &User{
-		ID:        10,
-		FirstName: "Updated",
-		LastName:  "Name",
-		Email:     "updated@acme.com",
-		Phone:     "0699887766",
+		ID:       10,
+		IDAuthKC: "kc-acme-009",
+		Role:     "manager",
 	}
 
-	mock.ExpectExec(`UPDATE users SET first_name=\$2, last_name=\$3, email=\$4, phone=\$5,\s+updated_at=NOW\(\) WHERE id=\$1`).
-		WithArgs(u.ID, u.FirstName, u.LastName, u.Email, u.Phone).
+	mock.ExpectExec(`UPDATE user_companies SET id_auth_kc=\$2, role=\$3,\s+updated_at=NOW\(\) WHERE id=\$1`).
+		WithArgs(u.ID, u.IDAuthKC, u.Role).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err := svc.UpdateUser(context.Background(), u)
@@ -207,8 +203,8 @@ func TestService_UpdateUser_NotFound(t *testing.T) {
 
 	u := &User{ID: 123}
 
-	mock.ExpectExec(`UPDATE users SET first_name=\$2, last_name=\$3, email=\$4, phone=\$5,\s+updated_at=NOW\(\) WHERE id=\$1`).
-		WithArgs(u.ID, u.FirstName, u.LastName, u.Email, u.Phone).
+	mock.ExpectExec(`UPDATE user_companies SET id_auth_kc=\$2, role=\$3,\s+updated_at=NOW\(\) WHERE id=\$1`).
+		WithArgs(u.ID, u.IDAuthKC, u.Role).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err := svc.UpdateUser(context.Background(), u)
@@ -228,7 +224,7 @@ func TestService_DeleteUser(t *testing.T) {
 	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
-	mock.ExpectExec(`DELETE FROM users WHERE id=\$1`).
+	mock.ExpectExec(`DELETE FROM user_companies WHERE id=\$1`).
 		WithArgs(77).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -256,7 +252,7 @@ func TestService_DeleteUser_Error(t *testing.T) {
 	svc, mock, spy, cleanup := newTestService(t)
 	defer cleanup()
 
-	mock.ExpectExec(`DELETE FROM users WHERE id=\$1`).
+	mock.ExpectExec(`DELETE FROM user_companies WHERE id=\$1`).
 		WithArgs(77).
 		WillReturnError(errors.New("delete failed"))
 

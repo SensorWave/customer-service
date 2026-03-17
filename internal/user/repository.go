@@ -16,40 +16,37 @@ func NewRepository(db *sql.DB) *Repository {
 /* ---------- CREATE ---------- */
 
 /*
-	curl -X POST http://localhost:8080/companies/<COMPANY_ID>/users \
+	curl -X POST http://localhost:8080/companies/<COMPANY_ID>/users-company \
 	    -H "Content-Type: application/json" \
 	    -d '{
-	        "first_name": "John",
-	        "last_name": "Doe",
-	        "email": "john@acme.com",
-	        "phone": "0611223344"
+	        "id_auth_kc": "kc-user-001",
+	        "role": "admin"
 	    }'
 */
 func (r *Repository) Create(ctx context.Context, u *User) error {
 	query := `
-		INSERT INTO users (company_id, first_name, last_name, email, phone, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+		INSERT INTO user_companies (company_id, id_auth_kc, role, created_at, updated_at)
+		VALUES ($1,$2,$3,NOW(),NOW())
 		RETURNING id
 	`
 
 	return r.DB.QueryRowContext(ctx, query,
-		u.CompanyID, u.FirstName, u.LastName, u.Email, u.Phone,
+		u.CompanyID, u.IDAuthKC, u.Role,
 	).Scan(&u.ID)
 }
 
 /* ---------- GET BY ID ---------- */
 
 /*
-curl http://localhost:8080/users/<USER_ID>
+curl http://localhost:8080/users-company/<USER_ID>
 */
 func (r *Repository) GetByID(ctx context.Context, id int) (*User, error) {
-	query := `SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at
-              FROM users WHERE id=$1`
+	query := `SELECT id, company_id, id_auth_kc, role, created_at, updated_at
+              FROM user_companies WHERE id=$1`
 
 	u := &User{}
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&u.ID, &u.CompanyID, &u.FirstName, &u.LastName, &u.Email, &u.Phone,
-		&u.CreatedAt, &u.UpdatedAt,
+		&u.ID, &u.CompanyID, &u.IDAuthKC, &u.Role, &u.CreatedAt, &u.UpdatedAt,
 	)
 
 	return u, err
@@ -58,11 +55,11 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*User, error) {
 /* ---------- GET BY COMPANY ---------- */
 
 /*
-curl http://localhost:8080/companies/<COMPANY_ID>/users
+curl http://localhost:8080/companies/<COMPANY_ID>/users-company
 */
 func (r *Repository) GetByCompany(ctx context.Context, companyID int) ([]User, error) {
-	query := `SELECT id, company_id, first_name, last_name, email, phone, created_at, updated_at
-              FROM users WHERE company_id=$1`
+	query := `SELECT id, company_id, id_auth_kc, role, created_at, updated_at
+              FROM user_companies WHERE company_id=$1`
 
 	rows, err := r.DB.QueryContext(ctx, query, companyID)
 	if err != nil {
@@ -73,8 +70,7 @@ func (r *Repository) GetByCompany(ctx context.Context, companyID int) ([]User, e
 	var users []User
 	for rows.Next() {
 		var u User
-		err := rows.Scan(&u.ID, &u.CompanyID, &u.FirstName, &u.LastName, &u.Email, &u.Phone,
-			&u.CreatedAt, &u.UpdatedAt)
+		err := rows.Scan(&u.ID, &u.CompanyID, &u.IDAuthKC, &u.Role, &u.CreatedAt, &u.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -87,23 +83,20 @@ func (r *Repository) GetByCompany(ctx context.Context, companyID int) ([]User, e
 /* ---------- UPDATE ---------- */
 
 /*
-curl -X PUT http://localhost:8080/users/<USER_ID> \
+curl -X PUT http://localhost:8080/users-company/<USER_ID> \
     -H "Content-Type: application/json" \
     -d '{
-        "company_id": 3,
-        "first_name": "Johnny",
-        "last_name": "Doe",
-        "email": "johnny.doe@acme.com",
-        "phone": "0699887766"
+        "id_auth_kc": "kc-user-002",
+        "role": "manager"
     }'
 */
 
 func (r *Repository) Update(ctx context.Context, u *User) error {
-	query := `UPDATE users SET first_name=$2, last_name=$3, email=$4, phone=$5,
+	query := `UPDATE user_companies SET id_auth_kc=$2, role=$3,
               updated_at=NOW() WHERE id=$1`
 
 	res, err := r.DB.ExecContext(ctx, query,
-		u.ID, u.FirstName, u.LastName, u.Email, u.Phone,
+		u.ID, u.IDAuthKC, u.Role,
 	)
 	if err != nil {
 		return err
@@ -123,10 +116,10 @@ func (r *Repository) Update(ctx context.Context, u *User) error {
 /* ---------- DELETE ---------- */
 
 /*
-curl -X DELETE http://localhost:8080/users/<USER_ID>
+curl -X DELETE http://localhost:8080/users-company/<USER_ID>
 */
 func (r *Repository) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM users WHERE id=$1`
+	query := `DELETE FROM user_companies WHERE id=$1`
 	_, err := r.DB.ExecContext(ctx, query, id)
 	return err
 }

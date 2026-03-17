@@ -23,12 +23,12 @@ func RegisterRoutes(r *gin.Engine, companyHandler *company.Handler, userHandler 
 		companyGroup.DELETE("/:id", companyHandler.DeleteCompany)
 
 		// ----------------- NESTED USER ROUTES -----------------
-		companyGroup.POST("/:id/users", userHandler.CreateUser)
-		companyGroup.GET("/:id/users", userHandler.GetUsersByCompany)
+		companyGroup.POST("/:id/users-company", userHandler.CreateUser)
+		companyGroup.GET("/:id/users-company", userHandler.GetUsersByCompany)
 	}
 
 	// ----------------- FLAT USER ROUTES -----------------
-	r.GET("/users/:id", userHandler.GetUserByID)
-	r.PUT("/users/:id", userHandler.UpdateUser)
-	r.DELETE("/users/:id", userHandler.DeleteUser)
+	r.GET("/users-company/:id", userHandler.GetUserByID)
+	r.PUT("/users-company/:id", userHandler.UpdateUser)
+	r.DELETE("/users-company/:id", userHandler.DeleteUser)
 }

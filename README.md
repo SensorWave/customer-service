@@ -6,7 +6,7 @@ It uses **PostgreSQL** as the database, **RabbitMQ** for asynchronous communicat
 ## 🚀 Features
 
 - Management of **companies** (`companies`)
-- Management of **users** (`users`)
+- Management of **users** (`users-company`)
 - Publishing RabbitMQ events (`CompanyCreated`, `UserCreated`)
 - Modular and extensible microservice architecture
 - Persistence via PostgreSQL
@@ -73,8 +73,8 @@ docker compose up --build
 | ------ | ---------------------- | --------------------------------- |
 | POST   | `/companies`           | Create a company                  |
 | GET    | `/companies/:id`       | Retrieve a company                |
-| POST   | `/companies/:id/users` | Create a user linked to a company |
-| GET    | `/users/:id`           | Retrieve a user                   |
+| POST   | `/companies/:id/users-company` | Create a user linked to a company |
+| GET    | `/users-company/:id`           | Retrieve a user                   |
 
 > Sample CURLs are available in each resource-specific `repository`.
 
@@ -83,7 +83,7 @@ docker compose up --build
 From your terminal:
 
 ```bash
-psql -h localhost -p 5433 -U user -d customers
+psql -h localhost -p 5434 -U user -d customer_service_db
 ```
 
 Then:
@@ -91,7 +91,7 @@ Then:
 ```sql
 \dt -- List tables
 SELECT * FROM companies;
-SELECT * FROM users;
+SELECT * FROM user_companies;
 ```
 
 ## 🧹 Cleanup
