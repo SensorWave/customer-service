@@ -79,6 +79,57 @@ func (h *Handler) GetUserByID(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// --------- GET BY KEYCLOAK ID ----------
+func (h *Handler) GetUserByKeycloakID(c *gin.Context) {
+	keycloakID := c.Param("keycloak_id")
+	if keycloakID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid keycloak id"})
+		return
+	}
+
+	user, err := h.Service.GetUserByKeycloakID(c.Request.Context(), keycloakID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+// --------- GET ROLE BY KEYCLOAK ID ----------
+func (h *Handler) GetUserRoleByKeycloakID(c *gin.Context) {
+	keycloakID := c.Param("keycloak_id")
+	if keycloakID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid keycloak id"})
+		return
+	}
+
+	role, err := h.Service.GetUserRoleByKeycloakID(c.Request.Context(), keycloakID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"role": role})
+}
+
+// --------- GET COMPANY ID BY KEYCLOAK ID ----------
+func (h *Handler) GetUserCompanyIDByKeycloakID(c *gin.Context) {
+	keycloakID := c.Param("keycloak_id")
+	if keycloakID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid keycloak id"})
+		return
+	}
+
+	companyID, err := h.Service.GetUserCompanyIDByKeycloakID(c.Request.Context(), keycloakID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"company_id": companyID})
+}
+
 // --------- UPDATE ----------
 func (h *Handler) UpdateUser(c *gin.Context) {
 	idStr := c.Param("id")

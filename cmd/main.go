@@ -79,7 +79,7 @@ func main() {
 
 	// Router
 	r := gin.Default()
-	r.Use(routes.WithConfig(cfg))
+	r.Use(routes.WithConfig(cfg), routes.CORSMiddleware())
 
 	// Fetch trusted proxies from .env
 	proxies := os.Getenv("TRUSTED_PROXIES")

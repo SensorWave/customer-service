@@ -39,6 +39,18 @@ func (s *Service) GetUserByID(ctx context.Context, id int) (*User, error) {
 	return s.Repo.GetByID(ctx, id)
 }
 
+func (s *Service) GetUserByKeycloakID(ctx context.Context, keycloakID string) (*User, error) {
+	return s.Repo.GetByKeycloakID(ctx, keycloakID)
+}
+
+func (s *Service) GetUserRoleByKeycloakID(ctx context.Context, keycloakID string) (string, error) {
+	return s.Repo.GetRoleByKeycloakID(ctx, keycloakID)
+}
+
+func (s *Service) GetUserCompanyIDByKeycloakID(ctx context.Context, keycloakID string) (int, error) {
+	return s.Repo.GetCompanyIDByKeycloakID(ctx, keycloakID)
+}
+
 func (s *Service) GetUsersByCompany(ctx context.Context, companyID int) ([]User, error) {
 	return s.Repo.GetByCompany(ctx, companyID)
 }

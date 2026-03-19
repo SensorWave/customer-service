@@ -52,6 +52,42 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*User, error) {
 	return u, err
 }
 
+/* ---------- GET BY KEYCLOAK ID ---------- */
+
+func (r *Repository) GetByKeycloakID(ctx context.Context, keycloakID string) (*User, error) {
+	query := `SELECT id, company_id, id_auth_kc, role, created_at, updated_at
+              FROM user_companies WHERE id_auth_kc=$1`
+
+	u := &User{}
+	err := r.DB.QueryRowContext(ctx, query, keycloakID).Scan(
+		&u.ID, &u.CompanyID, &u.IDAuthKC, &u.Role, &u.CreatedAt, &u.UpdatedAt,
+	)
+
+	return u, err
+}
+
+/* ---------- GET ROLE BY KEYCLOAK ID ---------- */
+
+func (r *Repository) GetRoleByKeycloakID(ctx context.Context, keycloakID string) (string, error) {
+	query := `SELECT role FROM user_companies WHERE id_auth_kc=$1`
+
+	var role string
+	err := r.DB.QueryRowContext(ctx, query, keycloakID).Scan(&role)
+
+	return role, err
+}
+
+/* ---------- GET COMPANY ID BY KEYCLOAK ID ---------- */
+
+func (r *Repository) GetCompanyIDByKeycloakID(ctx context.Context, keycloakID string) (int, error) {
+	query := `SELECT company_id FROM user_companies WHERE id_auth_kc=$1`
+
+	var companyID int
+	err := r.DB.QueryRowContext(ctx, query, keycloakID).Scan(&companyID)
+
+	return companyID, err
+}
+
 /* ---------- GET BY COMPANY ---------- */
 
 /*

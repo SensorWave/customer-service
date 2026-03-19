@@ -28,6 +28,9 @@ func RegisterRoutes(r *gin.Engine, companyHandler *company.Handler, userHandler 
 	}
 
 	// ----------------- FLAT USER ROUTES -----------------
+	r.GET("/users-company/keycloak/:keycloak_id", userHandler.GetUserByKeycloakID)
+	r.GET("/users-company/keycloak/:keycloak_id/role", userHandler.GetUserRoleByKeycloakID)
+	r.GET("/users-company/keycloak/:keycloak_id/company-id", userHandler.GetUserCompanyIDByKeycloakID)
 	r.GET("/users-company/:id", userHandler.GetUserByID)
 	r.PUT("/users-company/:id", userHandler.UpdateUser)
 	r.DELETE("/users-company/:id", userHandler.DeleteUser)

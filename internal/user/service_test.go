@@ -138,6 +138,72 @@ func TestService_GetUserByID(t *testing.T) {
 	}
 }
 
+func TestService_GetUserByKeycloakID(t *testing.T) {
+	svc, mock, _, cleanup := newTestService(t)
+	defer cleanup()
+
+	now := time.Now()
+	mock.ExpectQuery(`SELECT id, company_id, id_auth_kc, role, created_at, updated_at\s+FROM user_companies WHERE id_auth_kc=\$1`).
+		WithArgs("kc-acme-001").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "company_id", "id_auth_kc", "role", "created_at", "updated_at",
+		}).AddRow(5, 7, "kc-acme-001", "admin", now, now))
+
+	u, err := svc.GetUserByKeycloakID(context.Background(), "kc-acme-001")
+	if err != nil {
+		t.Fatalf("GetUserByKeycloakID returned error: %v", err)
+	}
+	if u.ID != 5 || u.CompanyID != 7 || u.IDAuthKC != "kc-acme-001" || u.Role != "admin" {
+		t.Fatalf("unexpected user returned: %#v", u)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestService_GetUserRoleByKeycloakID(t *testing.T) {
+	svc, mock, _, cleanup := newTestService(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`SELECT role FROM user_companies WHERE id_auth_kc=\$1`).
+		WithArgs("kc-acme-001").
+		WillReturnRows(sqlmock.NewRows([]string{"role"}).AddRow("manager"))
+
+	role, err := svc.GetUserRoleByKeycloakID(context.Background(), "kc-acme-001")
+	if err != nil {
+		t.Fatalf("GetUserRoleByKeycloakID returned error: %v", err)
+	}
+	if role != "manager" {
+		t.Fatalf("expected role manager, got %s", role)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestService_GetUserCompanyIDByKeycloakID(t *testing.T) {
+	svc, mock, _, cleanup := newTestService(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`SELECT company_id FROM user_companies WHERE id_auth_kc=\$1`).
+		WithArgs("kc-acme-001").
+		WillReturnRows(sqlmock.NewRows([]string{"company_id"}).AddRow(42))
+
+	companyID, err := svc.GetUserCompanyIDByKeycloakID(context.Background(), "kc-acme-001")
+	if err != nil {
+		t.Fatalf("GetUserCompanyIDByKeycloakID returned error: %v", err)
+	}
+	if companyID != 42 {
+		t.Fatalf("expected company ID 42, got %d", companyID)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
 func TestService_GetUsersByCompany(t *testing.T) {
 	svc, mock, _, cleanup := newTestService(t)
 	defer cleanup()

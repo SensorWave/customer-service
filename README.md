@@ -66,7 +66,7 @@ docker compose up --build
 | POST   | `/companies/:id/users-company` | Create a user linked to a company |
 | GET    | `/users-company/:id`           | Retrieve a user                   |
 
-> Sample CURLs are available in each resource-specific `repository`.
+Full route-by-route documentation with direct URLs and `curl` examples is available in [`docs/API.md`](docs/API.md).
 
 ## 🗄️ Accessing PostgreSQL
 
