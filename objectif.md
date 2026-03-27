@@ -1,80 +1,80 @@
-# Contexte & décision d’architecture (Keycloak + Customer Service)
+# Context and Architecture Decision (Keycloak + Customer Service)
 
-## Contexte
-Nous avons actuellement :
-- **Keycloak** déjà opérationnel côté front (Vue) pour l’authentification (login/mot de passe) et l’émission de JWT.
-- Un **Customer Service (Go + Postgres)** qui gère le modèle métier : **companies** et logique associée.
-- Un problème initial de **dédoublement** : Keycloak stocke des utilisateurs “identité”, et le Customer Service stocke aussi des utilisateurs.
+## Context
+We currently have:
+- **Keycloak** already running on the frontend side (Vue) for authentication, including username/password login and JWT issuance.
+- A **Customer Service (Go + Postgres)** that manages the business model: **companies** and related logic.
+- An initial **duplication** issue: Keycloak stores identity users, and the Customer Service also stores users.
 
-Objectif : **un seul service de connexion** (Keycloak), tout en gardant une gestion métier “user ↔ company” dans le Customer Service, sans dupliquer l’identité.
+Goal: **a single login service** (Keycloak), while still keeping the business relationship `user ↔ company` inside the Customer Service, without duplicating identity data.
 
-## Décision
-1) **Keycloak est la source de vérité pour l’identité et l’authentification**
-    - login / mot de passe / MFA / reset password / sessions
-    - identifiants d’utilisateur Keycloak (UUID) exposés dans les tokens (claim `sub`)
+## Decision
+1. **Keycloak is the source of truth for identity and authentication**
+   - login / password / MFA / password reset / sessions
+   - Keycloak user identifiers (UUID) exposed in tokens through the `sub` claim
 
-2) **Customer Service est la source de vérité pour le modèle métier**
-    - appartenance à une company
-    - rôle métier au sein de la company (ex: `company_owner`, `company_admin`, `member`)
-    - autorisations métier (qui peut gérer les membres, etc.)
+2. **Customer Service is the source of truth for the business model**
+   - membership in a company
+   - business role inside the company, for example `company_owner`, `company_admin`, `member`
+   - business permissions, such as who can manage members
 
-3) **Aucune authentification n’est faite contre la DB du Customer Service**
-    - Keycloak ne “tape” pas dans la DB du Customer Service pour login/register.
-    - Le backend valide le JWT Keycloak, lit `sub`, puis résout le contexte métier via sa DB.
+3. **No authentication is performed against the Customer Service database**
+   - Keycloak does not query the Customer Service database for login or registration.
+   - The backend validates the Keycloak JWT, reads `sub`, then resolves the business context through its own database.
 
-## Modèle de données retenu
-Dans le Customer Service, on ne stocke pas l’identité (email/prénom/nom/mot de passe) de façon obligatoire.
-On stocke uniquement une table de liaison (ex. `company_members` ou `user_company`) :
+## Selected Data Model
+Inside Customer Service, we do not store identity data such as email, first name, last name, or password as required business records.
+We only store a linking table, for example `company_members` or `user_company`:
 
-- `keycloak_user_id` (string/UUID) = `sub` du JWT Keycloak
+- `keycloak_user_id` (string/UUID) = the `sub` claim from the Keycloak JWT
 - `company_id`
-- `role` (métier)
+- `role` (business role)
 
-> Option : enrichir l’affichage (email/nom) à la demande via Keycloak Admin API, sans persister ces champs.
+> Option: enrich the UI with display data such as email or name on demand through the Keycloak Admin API, without persisting those fields.
 
-## Flux d’exécution (runtime)
-### Auth / appels API
-1. L’utilisateur se connecte sur **Keycloak** (front Vue via `keycloak-js`).
-2. Le front appelle l’API avec `Authorization: Bearer <access_token>`.
-3. Le backend :
-    - valide le JWT (issuer + JWKS + exp)
-    - extrait `sub`
-    - résout `company_id` et `role` via la table `company_members`
+## Runtime Flow
+### Authentication and API calls
+1. The user logs in through **Keycloak** from the Vue frontend via `keycloak-js`.
+2. The frontend calls the API with `Authorization: Bearer <access_token>`.
+3. The backend:
+   - validates the JWT (issuer + JWKS + exp)
+   - extracts `sub`
+   - resolves `company_id` and `role` through the `company_members` table
 
-### Endpoint minimal requis
-- `GET /me` (protégé) :
-    - lit `sub`
-    - retourne `{ company_id, role }`
-    - retourne `404 { code: "NOT_LINKED" }` si aucune liaison n’existe
+### Minimum required endpoint
+- `GET /me` (protected):
+  - reads `sub`
+  - returns `{ company_id, role }`
+  - returns `404 { code: "NOT_LINKED" }` if no link exists
 
-## Gestion des membres (chef de company)
-But à terme : un `company_owner` peut ajouter/supprimer des membres de sa company.
+## Member Management (company owner)
+Long-term goal: a `company_owner` can add or remove members from their company.
 
-Décision :
-- Le front “CRUD users” (chef) appelle **le Customer Service**
-- Le Customer Service applique les règles métier (owner/admin seulement)
-- Le Customer Service modifie la DB de liaisons (`company_members`)
-- La création/suppression du compte Keycloak se fait **via le backend** (jamais depuis le front)
+Decision:
+- The "CRUD users" frontend for the owner calls **Customer Service**
+- Customer Service applies business rules, for example owner/admin only
+- Customer Service updates the relationship table (`company_members`)
+- Keycloak account creation and deletion happens **through the backend** and never directly from the frontend
 
-### Phasage (état actuel)
-- Actuellement : les comptes Keycloak sont créés manuellement par un admin Keycloak.
-- Le backend doit donc fournir un endpoint “bootstrap” interne pour créer la liaison DB :
-    - `POST /admin/memberships/link { keycloak_user_id, company_id, role }`
+### Phasing (current state)
+- Right now, Keycloak accounts are created manually by a Keycloak admin.
+- The backend must therefore expose an internal bootstrap endpoint to create the database link:
+  - `POST /admin/memberships/link { keycloak_user_id, company_id, role }`
 
-### Phasage (évolution)
-- Plus tard : le backend créera les comptes Keycloak depuis l’UI chef via Keycloak Admin API
-    - service account (`backend-admin`) + `client_credentials`
-    - création user + required actions (verify email / set password)
-    - puis insertion de la liaison `company_members`
+### Phasing (future evolution)
+- Later, the backend will create Keycloak accounts from the owner UI through the Keycloak Admin API
+  - service account (`backend-admin`) + `client_credentials`
+  - user creation + required actions such as verify email / set password
+  - then insertion of the `company_members` link
 
-## Non-objectifs (pour éviter la complexité)
-- Ne pas implémenter de “User Federation/SPI” Keycloak pour authentifier contre la DB du Customer Service.
-- Ne pas exposer de credentials ou d’accès Admin Keycloak au front.
-- Ne pas dupliquer systématiquement l’identité (email/nom) en DB métier.
+## Non-goals (to avoid unnecessary complexity)
+- Do not implement a Keycloak User Federation/SPI to authenticate against the Customer Service database.
+- Do not expose Keycloak admin credentials or admin access to the frontend.
+- Do not systematically duplicate identity data such as email or name in the business database.
 
-## Conséquences
-- Il existe deux “représentations” d’un user :
-    - **Keycloak** (identité/sécurité)
-    - **Customer Service** (métier : company/role via `keycloak_user_id`)
-- Ce n’est pas un doublon d’auth : **un seul login** (Keycloak).
-- Les autorisations “chef gère ses membres” sont contrôlées par le backend via DB métier.
+## Consequences
+- There are two "representations" of a user:
+  - **Keycloak** for identity and security
+  - **Customer Service** for business context: company and role via `keycloak_user_id`
+- This is not duplicated authentication: there is still **only one login flow**, through Keycloak.
+- Permissions such as "company owner manages members" are enforced by the backend through the business database.
