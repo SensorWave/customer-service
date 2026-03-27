@@ -2,8 +2,8 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -14,7 +14,7 @@ type Config struct {
 	RabbitMQ   string
 }
 
-func LoadConfig() *Config {
+func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		DBHost:     os.Getenv("DB_HOST"),
 		DBUser:     os.Getenv("DB_USER"),
@@ -23,11 +23,29 @@ func LoadConfig() *Config {
 		RabbitMQ:   os.Getenv("RABBITMQ_HOST"),
 	}
 
-	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBPassword == "" || cfg.DBName == "" || cfg.RabbitMQ == "" {
-		log.Fatal("Missing required environment variables")
+	var missing []string
+	requiredValues := []struct {
+		name  string
+		value string
+	}{
+		{name: "DB_HOST", value: cfg.DBHost},
+		{name: "DB_USER", value: cfg.DBUser},
+		{name: "DB_PASSWORD", value: cfg.DBPassword},
+		{name: "DB_NAME", value: cfg.DBName},
+		{name: "RABBITMQ_HOST", value: cfg.RabbitMQ},
 	}
 
-	return cfg
+	for _, item := range requiredValues {
+		if item.value == "" {
+			missing = append(missing, item.name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
+	}
+
+	return cfg, nil
 }
 
 func (c *Config) PostgresDSN() string {

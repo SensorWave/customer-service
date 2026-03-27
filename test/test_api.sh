@@ -18,13 +18,11 @@ COMPANY_ID=$(echo "$COMPANY" | jq -r '.id')
 echo "Company ID: $COMPANY_ID"
 
 echo "==> Creating user in company..."
-USER=$(curl -s -X POST $BASE_URL/companies/$COMPANY_ID/users \
+USER=$(curl -s -X POST $BASE_URL/companies/$COMPANY_ID/users-company \
   -H "Content-Type: application/json" \
   -d '{
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "john@acme.com",
-        "phone": "0611223344"
+        "id_auth_kc": "kc-acme-admin-001",
+        "role": "admin"
       }')
 
 echo "$USER"
@@ -37,7 +35,7 @@ echo "==> Listing companies..."
 curl -s $BASE_URL/companies | jq .
 
 echo "==> Listing users of company..."
-curl -s $BASE_URL/companies/$COMPANY_ID/users | jq .
+curl -s $BASE_URL/companies/$COMPANY_ID/users-company | jq .
 
 echo "==> Updating company..."
 curl -s -X PUT $BASE_URL/companies/$COMPANY_ID \
@@ -50,18 +48,16 @@ curl -s -X PUT $BASE_URL/companies/$COMPANY_ID \
       }' | jq .
 
 echo "==> Updating user..."
-curl -s -X PUT $BASE_URL/users/$USER_ID \
+curl -s -X PUT $BASE_URL/users-company/$USER_ID \
   -H "Content-Type: application/json" \
   -d '{
-        "first_name": "Jane",
-        "last_name": "Doe",
-        "email": "jane@acme.com",
-        "phone": "0699887766"
+        "id_auth_kc": "kc-acme-admin-002",
+        "role": "manager"
       }' | jq .
 
 
 echo "==> Deleting user..."
-curl -s -X DELETE $BASE_URL/users/$USER_ID
+curl -s -X DELETE $BASE_URL/users-company/$USER_ID
 
 echo "==> Deleting company..."
 curl -s -X DELETE $BASE_URL/companies/$COMPANY_ID

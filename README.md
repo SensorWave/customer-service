@@ -6,7 +6,9 @@ It uses **PostgreSQL** as the database, **RabbitMQ** for asynchronous communicat
 ## 🚀 Features
 
 - Management of **companies** (`companies`)
-- Management of **users** (`users`)
+- Management of **users** (`users-company`)
+- Lookup of company users by **Keycloak ID**
+- Global **CORS** support with `OPTIONS` preflight handling
 - Publishing RabbitMQ events (`CompanyCreated`, `UserCreated`)
 - Modular and extensible microservice architecture
 - Persistence via PostgreSQL
@@ -19,10 +21,13 @@ It uses **PostgreSQL** as the database, **RabbitMQ** for asynchronous communicat
 ├── config/
 │   └── config.go       # Configuration & env loading
 ├── internal/
-│   ├── customer/
-│   │ ├── company/      # "Company" business logic
-│   │ └── user/         # "User" business logic
+│   ├── company/        # "Company" business logic
+│   ├── user/           # "User" business logic
 │   └── event/          # RabbitMQ publishing
+├── docs/
+│   ├── API.md          # Route-by-route API reference
+│   └── available-keycloak-users-contract.md
+│                      # Proposed dropdown contract for frontend integration
 ├── routes/
 │   └── route.go        # Application routes
 ├── docker-compose.yml  # Full stack (Go + Postgres + RabbitMQ)
@@ -45,6 +50,8 @@ Create a `.env` file at the root of the project and fill in the variables:
 cp .env.example .env
 ```
 
+The service only needs database and RabbitMQ configuration from `.env`.
+
 ## 🐳 Running the project
 
 From the root of the project:
@@ -57,21 +64,42 @@ docker compose up --build
 
 📋 API (via Postman, curl, etc.)
 
-| Method | Endpoint               | Description                       |
-| ------ | ---------------------- | --------------------------------- |
-| POST   | `/companies`           | Create a company                  |
-| GET    | `/companies/:id`       | Retrieve a company                |
-| POST   | `/companies/:id/users` | Create a user linked to a company |
-| GET    | `/users/:id`           | Retrieve a user                   |
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| GET | `/health` | Health check |
+| POST | `/companies` | Create a company |
+| GET | `/companies` | List companies |
+| GET | `/companies/:id` | Retrieve a company |
+| PUT | `/companies/:id` | Update a company |
+| DELETE | `/companies/:id` | Delete a company |
+| POST | `/companies/:id/users-company` | Create a user linked to a company |
+| GET | `/companies/:id/users-company` | List users linked to a company |
+| GET | `/users-company/keycloak/:keycloak_id` | Retrieve a user by Keycloak ID |
+| GET | `/users-company/keycloak/:keycloak_id/role` | Retrieve only the user role by Keycloak ID |
+| GET | `/users-company/keycloak/:keycloak_id/company-id` | Retrieve only the company ID by Keycloak ID |
+| GET | `/users-company/:id` | Retrieve a user |
+| PUT | `/users-company/:id` | Update a user |
+| DELETE | `/users-company/:id` | Delete a user |
 
-> Sample CURLs are available in each resource-specific `repository`.
+Full route-by-route documentation with direct URLs and `curl` examples is available in [`docs/API.md`](docs/API.md).
+
+The proposed backend contract for the frontend "available Keycloak users" dropdown is documented in [`docs/available-keycloak-users-contract.md`](docs/available-keycloak-users-contract.md).
+
+## 🌐 CORS
+
+The API exposes global CORS headers for browser clients:
+
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`
+- `Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization`
+- `OPTIONS` preflight requests return `204 No Content`
 
 ## 🗄️ Accessing PostgreSQL
 
 From your terminal:
 
 ```bash
-psql -h localhost -p 5433 -U user -d customers
+psql -h localhost -p 5434 -U user -d customer_service_db
 ```
 
 Then:
@@ -79,9 +107,19 @@ Then:
 ```sql
 \dt -- List tables
 SELECT * FROM companies;
-SELECT * FROM users;
+SELECT * FROM user_companies;
 ```
 
+## Create User
+Please run this create for adding your keycloak account to an admin account.
+```bash
+curl -X POST http://localhost:8080/companies/1/users-company \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id_auth_kc": "08d697a6-8b89-40fc-aaf3-bdaaa65e0ae4",
+    "role": "admin"
+  }'
+```
 ## 🧹 Cleanup
 
 To stop and remove containers:
